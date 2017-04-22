@@ -29,3 +29,6 @@ Then for the operations of union and intersection, bitwise operations &, |, ~ ca
 The lsetproc.h class implements a processor class that takes a pointer to an array of lset objects, and processes it.
 
 Currently I can see the following issues that need to be improved:
+
+If there is a set like {0,19000}, a lot of unecessary zero bits will be declared in between.
+Batch processing can be easily multi threaded I imagine, but I don't know how.
