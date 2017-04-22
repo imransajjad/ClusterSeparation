@@ -6,7 +6,7 @@
 #include <vector>
 #include <bitset>
 
-#define ctype uint32_t
+#define ctype uint16_t
 const int csize = sizeof(ctype)*8; // num of bits used by ctype. char(8), bool(1), int(32)
 
 //types and constants used in the functions below
@@ -36,16 +36,17 @@ int popcount64b(uint64_t x)
 
 class lset
 {
-	public:
+	friend class lsetproc;
+	private:
 		// data
 		std::vector<ctype> v;
 		int (*getHamm)(uint64_t) ;
 		// funtion pointer to a standard Hamming weight function
 
-
+	public:
 		// constructor
 		lset()
-		{	getHamm = &popcount64b;}
+		{	getHamm = &popcount64b; }
 		lset(int* cluster, int n)
 		{	getHamm = &popcount64b;	init_data(cluster,n); }
 
@@ -64,18 +65,21 @@ class lset
 			int count = 0;
 			for(int i = 0; i <n; ++i)
 			{
+
 				// if value goes outside current block, append blocks
 				while (cluster[i] >= (csize*(count+1)))
 				{	v.push_back(temp); temp = 0; count++; }
-				temp |= (1 << (cluster[i]-csize*count)   );
+				temp |= ((ctype)1 << (cluster[i]-csize*count)   );
+				// std::cout << temp << " " << (cluster[i]-csize*count) <<'\n';
 			}
-			v.push_back(temp);
+			if (temp!=0)
+				v.push_back(temp);
 		}
 
 		void insert(int in)
 		{
 			// find i
-			uint32_t i = in/csize;
+			int i = in/csize;
 			if (i >= v.size())
 				v.resize(i+1,0);
 			v[i] |= (1 << (in-csize*i)   );
@@ -83,7 +87,7 @@ class lset
 		void remove(int in)
 		{
 			// find i
-			uint32_t i = in/csize;
+			int i = in/csize;
 			if (i < v.size())
 				v[i] &= ~(1 << (in-csize*i)   );
 			i = v.size();
@@ -93,23 +97,25 @@ class lset
 				v.resize(i);
 		}
 
-
-		void print()
+		void print(int mode)
 		{
+			// 0 print all, 1 print stats, 2 print stats+bits, 3 print stats+num
 			std:: cout << "at " << this << ", size is " << v.size() <<"x" 
 				<< csize << ", numel is " << this->num_ones() << " elements are: " ;
-			// print_list();
+			if ((mode == 1) || (mode%2 == 0))
+				print_list();
 			// i print the array backwards, so that it is human readable
-			// for (auto i = v.end(); i != v.begin(); --i)
-			// 	std::cout << std::bitset<csize>(*(i-1)) << ' ';
+			if ((mode == 1) || (mode%3 == 0))
+				for (auto i = v.end(); i != v.begin(); --i)
+					std::cout << std::bitset<csize>(*(i-1)) << ' ';
 			std::cout << '\n';
 		}
 
 		void print_list()
 		{
 			ctype temp ;
-			uint32_t j = 0;
-			for (uint32_t i = 0; i < v.size(); ++i)
+			int j = 0;
+			for (auto i = 0; i < v.size(); ++i)
 			{
 				temp = v[i];
 				while (temp != 0)
@@ -123,35 +129,37 @@ class lset
 			}
 		}
 
+		void print(){print(2);}
+
 		int size() {return v.size();}
+		ctype back() {return v.back();}
+		void pop_back() {v.pop_back();}
 		void resize(int target_size) {v.resize(target_size,0); }
+		void resize(int target_size, ctype fill) {v.resize(target_size,fill); }
 
 		int num_ones()
 		{
 			int count = 0;
 			if (size() > 0)
 			for (int i = 0; i < size(); ++i)
-			count += getHamm( (uint64_t) v[i] );
+				count += getHamm( (uint64_t) v[i] );
 			return count;
 		}
 
 		lset operator|(const lset& rhs)
 		{
 			lset b = rhs;
-			b.resize( size() > b.size()?size():b.size() );
-			for (int i = 0; i < b.size(); ++i)
+			b.resize( size() > b.size()?size():b.size(),0 );
+			for (int i = 0; i < size(); ++i)
 				b.v[i] |= v[i];
 			return b;
 		}
 
 		lset& operator|=(const lset& rhs)
 		{
-			lset a = rhs;
-			// if (size() <= 0)
-			// { std::cout << "warning: or of empty not well defined"; return a;}
-			
-			resize( a.size() > size()?a.size():size() );
-			for (int i = 0; i < size(); ++i)
+			lset a = rhs;		
+			resize( a.size() > size()?a.size():size(),0 );
+			for (int i = 0; i < a.size(); ++i)
 				v[i] |= a.v[i];
 			return *this;
 		}
@@ -159,12 +167,12 @@ class lset
 		lset operator&(const lset& rhs)
 		{
 			lset b = rhs;
-			lset a = *this;
-			b.resize( a.size() < b.size()?a.size():b.size() );
+			b.resize( size() < b.size()?size():b.size() );
 			for (int i = 0; i < b.size(); ++i)
-				b.v[i] &= a.v[i];
+				b.v[i] &= v[i];
 			if (b.num_ones() == 0)
 				b.resize(0);
+			else while (b.back()==0) b.pop_back();
 			return b;
 		}
 
@@ -176,6 +184,7 @@ class lset
 				v[i] &= a.v[i];
 			if (num_ones() == 0)
 				resize(0);
+			else while (back()==0) pop_back();
 			return *this;
 		}
 
