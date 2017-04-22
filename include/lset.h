@@ -6,7 +6,7 @@
 #include <vector>
 #include <bitset>
 
-#define ctype uint16_t
+#define ctype uint32_t
 const int csize = sizeof(ctype)*8; // num of bits used by ctype. char(8), bool(1), int(32)
 
 //types and constants used in the functions below
@@ -102,10 +102,10 @@ class lset
 			// 0 print all, 1 print stats, 2 print stats+bits, 3 print stats+num
 			std:: cout << "at " << this << ", size is " << v.size() <<"x" 
 				<< csize << ", numel is " << this->num_ones() << " elements are: " ;
-			if ((mode == 1) || (mode%2 == 0))
+			if (mode%2 == 0)
 				print_list();
 			// i print the array backwards, so that it is human readable
-			if ((mode == 1) || (mode%3 == 0))
+			if (mode%3 == 0)
 				for (auto i = v.end(); i != v.begin(); --i)
 					std::cout << std::bitset<csize>(*(i-1)) << ' ';
 			std::cout << '\n';

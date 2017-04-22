@@ -106,7 +106,7 @@ int main ()
 
 	for (int i = 0; i < num_sets; ++i)
 	{
-		my_sets[i].print();
+		my_sets[i].print(2);
 		union_before |= my_sets[i];
 	}
 
@@ -125,15 +125,15 @@ int main ()
 	for (int i = 0; i < num_sets; ++i)
 	{
 		if (my_sets[i].num_ones() > 0)
-		{ my_sets[i].print();}
+		{ my_sets[i].print(2);}
 		union_after |= my_sets[i] ;
 		intersection_after &= my_sets[i];
 	}
 
 	std::cout << "\nUnion before and after, and intersection_after \n\n" ;
-	union_before.print();
-	union_after.print();
-	intersection_after.print();
+	union_before.print(1);
+	union_after.print(1);
+	intersection_after.print(1);
 
 	auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 	std::cout << duration << " microseconds.\n" ;
