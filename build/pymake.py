@@ -6,7 +6,7 @@ from os.path import isfile, join, getmtime, splitext, exists
 import time, subprocess
 
 print("using build/pymake.py")
-include_string = "-I../include  -std=c++11" #  + " -Wall"
+include_string = "-I../include  -std=c++11 -pthread"   + " -Wall"
 linker_string = "-L../lib "
 la_string = ""
 main_exec = "main"

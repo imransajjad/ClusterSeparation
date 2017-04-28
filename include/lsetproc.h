@@ -2,6 +2,7 @@
 #define LSETPROC_H
 
 #include <iostream>
+#include <list>
 #include <vector>
 #include <bitset>
 
@@ -41,122 +42,191 @@ void quickSort(int arr[], int left, int right)
 class lsetproc
 {
 	// this data type processes a list of lset objects in place
-	// do not copy or assign an instance of this object to another of its type
-	// even if destroyed, should leave the lset objects in place
-	int num_sets;
-	lset* sets;
-	int batch_size;
-	int max_size;
+
+	std::vector<lset> sets; // vector of lsets
+	int batch_size; // for future use
 
 	public:
-		lsetproc(lset* sets_in, int num_sets_in, int batch_size_in)
+		lsetproc(std::vector<lset> sets_in, int batch_size_in)
 		{
-			num_sets = num_sets_in;
-			batch_size = batch_size_in;
 			sets = sets_in;
-			find_largest_size();
+			batch_size = batch_size_in;
 		}
 
-		// copy constructor
-		lsetproc(const lset& that)
+		
+		void print_all(int mode)
 		{
-			std::cout << "Do not try and copy this object!!!";
-			num_sets = 0;
-			batch_size = 0;
-			sets = NULL;
-
+			// prints (some of) the sets as human readable
+			// modes:
+			// 0, print all nonzero
+			// 1, print info only
+			// 2, print all nonzero with intersection (very inefficient)
+			// 3, print info only with intersection (very inefficient)
+			// 4, print all
+			int count = 0;
+			int set_count = 0;
+			int intersection_count = -1;
+			for (size_t i = 0; i != sets.size(); ++i)
+				if ( (sets[i].size() > 0) || (mode==4) )
+				{
+					if (mode%2 == 0) sets.at(i).print(2);
+					count += sets.at(i).num_ones();
+					set_count++;
+				}
+			if ( (mode == 2) || (mode == 3)) intersection_count = intersection_num();
+			std::cout << "Total number of Sets: " << set_count << " containing " <<
+			count << " elements with " << intersection_count << " intersections."<<std::endl;
 		}
 
-		void find_largest_size()
+		lset union_all()
 		{
-			int t;
-			for (int i = 0; i < num_sets; ++i)
-			{
-				t = sets[i].size();
-				if (t> max_size)
-					max_size = t;
-			}
+			// return an lset which contains the union of all elements of set
+			lset b;
+			for (size_t i = 0; i != sets.size(); ++i)
+				if (sets[i].size() > 0)
+					b |= sets.at(i);
+			return b;
 		}
 
-		void set_max_size(int in){	max_size = in;	}
+		lset intersection_all()
+		{
+			// return lset common to all elements of sets
+			lset b;
+			for (size_t i = 0; i != sets.size(); ++i)
+				if (sets[i].size() > 0)
+					b &= sets[i];
+			return b;
+		}
 
 		void process()
 		{
-			int setlist[num_sets];
-			int li;
-			int sets_rem = num_sets;
-
-			for (int i = 0; i < num_sets; ++i)
-				setlist[i] = i;
-
-			while( sets_rem > 0)
-		 	{
-				li = process_subset(setlist,sets_rem);
-				// std::cout << '\n' << sets_rem << " " << li<< " " ;
-				if (li != sets_rem)
-				{
-					sets_rem--;
-					// std::cout << setlist[li] << '\n'; 
-					setlist[li] = setlist[sets_rem];
-				}
-			}
+			// generate a numbered subset of the sets and pass it to
+			// the private processor function
+			std::list<int> setlist;
+			for (size_t i = 0; i != sets.size(); ++i)
+				if (sets[i].size() >0)
+					setlist.push_back(i);
+			process_subset(setlist);
 		}
 
-		int process_subset(int* index, int n)
+		void cleanup()
 		{
-			lset intersection;
+			// is inefficient but generally,
+			// calling this function should not be required
+			std::cout << "starting cleanup...\n";
+			int count = 0;
+			for (auto  i = sets.begin(); i != sets.end(); ++i)
+				if ((*i).size() <= 0)
+				{	sets.erase(i); i--;	count++;}
+			std::cout<< "removed " << count << " elements\n";
+
+		}
+
+		void cleanup_fast()
+		{
+			// somewhat faster cleanup
+			std::vector<lset> new_sets;
+			int count = 0;
+			std::cout << "starting fast cleanup...\n";
+			for (auto i= sets.begin(); i != sets.end(); ++i)
+				if ( (*i).size() > 0 )
+					{ new_sets.push_back(*i); count++;}
+			sets.clear();
+			sets = new_sets;
+			std::cout<< "replaced " << count << " elements\n";
+		}
+
+	private:
+		int max_size()
+		{
+			// get the 'size' of the largest element in sets.
+			// should not have to use this function ever...
+			int size = 0;
+			for (size_t i = 0; i != sets.size(); ++i)
+				if (sets[i].size() > size)
+					size = sets.at(i).size();
+			return size;
+		}
+
+		int intersection_num()
+		{
+			// total number of common elements across all sets
+			// WARNING: VERY SLOW!! do not use this function unless absolutely required
+			int count = 0;
+			for (size_t i = 0; i != sets.size(); ++i)
+				for (size_t j =i+1; j != sets.size(); ++j)
+					if ( (sets[i].size() > 0) && (sets[j].size() > 0) )
+						count += (sets[i] & sets[j]).num_ones();
+			return count;
+		}
+
+		void process_subset(std::list<int> &index)
+		{
+			// process a numbered (by list index) subset of sets
+
+			// if two elements have more than 90% common elements,
+			// merge the two, save onto second, delete first
+
+			// if there is an intersection among all the sets,
+			// remove that from all but largest set
+
+			// this function will empty the index list	
+			// lset intersection;
+			lset inters_u_large_comp;
+			// intersection = lset(1);
+			std::list<int>::iterator largest_index_index = index.begin();
 			int largest_size = 0;
-			int largest_index_index = 0;
 			int temp;
-			for (int i = 0; i < n; ++i)
-			{
-				intersection &= sets[index[i]];
-				temp = sets[index[i]].num_ones();
-				// std::cout << temp << " " << sets[index[i]].size() << '\n';
-				if (temp > largest_size)
-				{
-					largest_size = temp;
-					largest_index_index = i;
-				}
-				
-			}
-			
-			double overlap = ((double)intersection.num_ones())/largest_size;
 
-			// std::cout << "overlap is " << overlap << std::endl;
+			// this part will remove elements the index list
+			for (auto  i = index.begin(); i != index.end(); ++i)
+				for (auto j = std::next(i,1); j != index.end(); ++j)
+					
+					if ( (sets[*i].size() > 0) && (sets[*j].size() > 0) && 
+						((double((sets[*i] & sets[*j]).num_ones()))/
+						double(sets[*i].num_ones()) > thres) )
+					{
+						sets[*j] |= sets[*i];
+						// std::cout << std::distance( index.begin(), i ) << '\n';
+						sets[*i] = lset(0);
+						i = index.erase(i);
+						break;
+					
+					}
 
-			if (overlap > thres)
+			// this part will work till no index remains
+			while (index.begin() != index.end())
 			{
-				std::cout << "thres met" << largest_index_index << " " << index[largest_index_index] << " " <<largest_size << "\n";
-				lset amalgamation;
-				for (int i = 0; i < n; ++i)
+				largest_size = 0;
+				largest_index_index = index.begin();
+				// intersection = lset(1);
+
+				for (auto  i = index.begin(); i != index.end(); ++i)
 				{
-					amalgamation |= sets[index[i]];
-					sets[index[i]].resize(0);
-				}
-				sets[index[0]] = amalgamation;
-				return n;
-			}
-			else
-			{
-				// std::cout << "thres not met " << n << " " << largest_index_index <<
-				//  " " << index[largest_index_index] << " " <<largest_size << "\n";
-				// for (int i = 0; i < n; ++i)
-				// 	std::cout << index[i] << " ";
-				// std::cout << '\n';	
-				lset inters_u_large_comp = ~sets[index[largest_index_index]] ;
-				inters_u_large_comp.resize( max_size, (ctype)-1 );
-				for (int i = 0; i < n; ++i)
-				{
-					if (i != largest_index_index)
-						sets[index[i]] &= inters_u_large_comp;
+					// intersection &= sets[*i];
+					temp = sets[*i].num_ones();
+					// std::cout << temp << " " << sets[index[i]].size() << '\n';
+					if (temp > largest_size)
+					{
+						largest_size = temp;
+						largest_index_index = i;
+					}
 					
 				}
-				return largest_index_index;
+
+				inters_u_large_comp = ~sets[*largest_index_index] ;
+				//inters_u_large_comp.resize( max_size());
+				for (auto  i = index.begin(); i != index.end(); ++i)
+				{
+					if ((i != largest_index_index) && (sets[*i].size() > 0))
+						sets[*i] &= inters_u_large_comp;
+					
+				}
+				index.erase(largest_index_index);
 			}
+
 			
 		}
-	
 
 };
 
