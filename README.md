@@ -9,11 +9,12 @@ It is related to clustering/classification. Perhaps, maybe you can help a little
 
 A “cluster” is defined as a set of identifiers (integers). Each identifier (integer) inside a cluster is present only once.
 A list of clusters is given as input. The objective is to output a new set of clusters that verifies the following properties:
-1.       Each identifier appears only once: in other words, each cluster is exclusive to all others. The list of clusters at input do not guarantee this (one identifier can be present in N of the clusters, but at most once in each cluster)
 
-2.       When two (or more) clusters overlap by more than some threshold (set to 90%), then they are all “merged” into one. The operation is actually a union. Property (1) as too be verified on the merged cluster too.
+1.Each identifier appears only once: in other words, each cluster is exclusive to all others. The list of clusters at input do not guarantee this (one identifier can be present in N of the clusters, but at most once in each cluster)
 
-3.       When the overlap is below that threshold, the intersection will be moved into the largest of the group overlapping. Intersection can be complex (cluster one overlaps 2 & 3, cluster 3 overlapping 1, 4, 5, cluster 2 overlapping 1, 5, etc…)
+2.When two (or more) clusters overlap by more than some threshold (set to 90%), then they are all “merged” into one. The operation is actually a union. Property (1) as too be verified on the merged cluster too.
+
+3.When the overlap is below that threshold, the intersection will be moved into the largest of the group overlapping. Intersection can be complex (cluster one overlaps 2 & 3, cluster 3 overlapping 1, 4, 5, cluster 2 overlapping 1, 5, etc…)
  
 Your objective is to solve this problem in the most efficient way possible. In the case of a CPU vs memory tradeoff, prefer improving CPU time; however, memory complexity shall be analyzed.
 Assume having access to a powerful CPU: multi-threading is fair game.
