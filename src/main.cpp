@@ -71,7 +71,6 @@ void lset_fileread(std::vector<lset> &my_sets, std::string filename)
 
 int main ()
 {
-	int pt = 1;
 	std::cout << __cplusplus << '\n';
 	std::cout << "csize: " << csize << '\n';
 
@@ -81,14 +80,11 @@ int main ()
 
 	std::cout << "\nInput Data...\n\n" ;
 
-	lsetproc set_processor = lsetproc(my_sets, 500 );
+	lsetproc set_processor = lsetproc(my_sets, 100 );
 
 	set_processor.print_all(1);
-	lset union_before = set_processor.union_all();
-	lset intersection_before = set_processor.intersection_all(); 
-
+	
 	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-
 
 	set_processor.process();
 	//set_processor.cleanup_fast();
@@ -96,17 +92,7 @@ int main ()
 	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
 
 	std::cout << "\nDone.\n\n" ;
-
-	
-	set_processor.print_all(0);
-	lset union_after = set_processor.union_all();
-	lset intersection_after = set_processor.intersection_all();
-
-	std::cout << "\nUnion and intersection_after \n\n" ;
-	//union_before.print(pt);
-	union_after.print(pt);
-	//intersection_before.print(pt);
-	intersection_after.print(pt);
+	set_processor.print_all(2);
 
 	auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 	std::cout << duration*1e-6 << " seconds.\n" ;

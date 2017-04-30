@@ -2,41 +2,14 @@
 #define LSETPROC_H
 
 #include <iostream>
+#include <algorithm>
 #include <list>
 #include <vector>
 #include <bitset>
 
+#include "externs.h"
+
 #define thres 0.9
-
-void quickSort(int arr[], int left, int right)
-{
-	int i = left, j = right;
-	int tmp;
-	int pivot = arr[(left + right) / 2];
-
-	/* partition */
-	while (i <= j)
-	{
-		while (arr[i] < pivot)
-			i++;
-		while (arr[j] > pivot)
-			j--;
-		if (i <= j)
-		{
-			tmp = arr[i];
-			arr[i] = arr[j];
-			arr[j] = tmp;
-			i++;
-			j--;
-		}
-	}
-
-	/* recursion */
-	if (left < j)
-	quickSort(arr, left, j);
-	if (i < right)
-	quickSort(arr, i, right);
-}
 
 
 class lsetproc
@@ -106,7 +79,8 @@ class lsetproc
 			for (size_t i = 0; i != sets.size(); ++i)
 				if (sets[i].size() >0)
 					setlist.push_back(i);
-			process_subset(setlist);
+			process_subset_thres(setlist);
+			process_subset_inters_find(setlist);
 		}
 
 		void cleanup()
@@ -137,6 +111,7 @@ class lsetproc
 		}
 
 	private:
+
 		int max_size()
 		{
 			// get the 'size' of the largest element in sets.
@@ -160,74 +135,118 @@ class lsetproc
 			return count;
 		}
 
-		void process_subset(std::list<int> &index)
+		void process_subset_thres(std::list<int> &index)
 		{
-			// process a numbered (by list index) subset of sets
+			// process a numbered (by list index) subset of sets (guaranteed nonempty)
 
 			// if two elements have more than 90% common elements,
 			// merge the two, save onto second, delete first
+
+			// this part will remove elements the index list
+			for (auto i = index.begin(); i != index.end(); ++i)
+				for (auto j = std::next(i,1); j != index.end(); ++j)
+					
+					if ( (sets[*i] & sets[*j]).num_ones() > thres*sets[*i].num_ones() )
+					{
+						sets[*j] |= sets[*i];
+						// std::cout << std::distance( index.begin(), i ) << '\n';
+						// sets[*i].print();
+						sets[*i] = lset(0);
+
+						i =index.erase(i); --i;
+						break;
+					}
+
+			// for (auto i = index.begin(); i != index.end(); ++i)
+			// 	std::cout << sets[*i].num_ones() << std::endl;
+
+		}
+
+		void process_subset_inters_sort(std::list<int> &index)
+		{
 
 			// if there is an intersection among all the sets,
 			// remove that from all but largest set
 
 			// this function will empty the index list	
-			// lset intersection;
-			lset inters_u_large_comp;
-			// intersection = lset(1);
-			std::list<int>::iterator largest_index_index = index.begin();
-			int largest_size = 0;
-			int temp;
-
-			// this part will remove elements the index list
-			for (auto  i = index.begin(); i != index.end(); ++i)
-				for (auto j = std::next(i,1); j != index.end(); ++j)
-					
-					if ( (sets[*i].size() > 0) && (sets[*j].size() > 0) && 
-						((double((sets[*i] & sets[*j]).num_ones()))/
-						double(sets[*i].num_ones()) > thres) )
-					{
-						sets[*j] |= sets[*i];
-						// std::cout << std::distance( index.begin(), i ) << '\n';
-						sets[*i] = lset(0);
-						i = index.erase(i);
-						break;
-					
-					}
-
+			
 			// this part will work till no index remains
+
+			// sort the list from largest to smallest
+			index.sort( [&](int a, int b){ return (sets[a].num_ones() > 
+				sets[b].num_ones()); }  );
+
+			for (auto i = index.begin(); i != index.end();)
+			{
+				for (auto j = std::next(i,1); j != index.end(); ++j)
+					if (sets[*j].size() > 0)
+						sets[*j] &= ~sets[*i];
+				index.sort( [&](int a, int b){ return (sets[a].num_ones() > 
+				sets[b].num_ones()); }  ); // I cleverly sort here.
+				i = index.erase(i);
+			}
+
+		}
+
+		void process_subset_inters_find(std::list<int> &index)
+		{
+			// if there is an intersection among all the sets,
+			// remove that from all but largest set
+
+			// this function will empty the index list	
+			
+			// this part will work till no index remains
+
+			lset el_rem;
+			std::list<int>::iterator max_ii = index.begin();
+			// int largest_size = 0;
+			// int temp;
+
 			while (index.begin() != index.end())
 			{
-				largest_size = 0;
-				largest_index_index = index.begin();
-				// intersection = lset(1);
+				// largest_size = 0;
+				// max_ii = index.begin();
 
-				for (auto  i = index.begin(); i != index.end(); ++i)
-				{
-					// intersection &= sets[*i];
-					temp = sets[*i].num_ones();
-					// std::cout << temp << " " << sets[index[i]].size() << '\n';
-					if (temp > largest_size)
-					{
-						largest_size = temp;
-						largest_index_index = i;
-					}
+				// for (auto  i = index.begin(); i != index.end(); ++i)
+				// {
+				// 	temp = sets[*i].num_ones();
+				// 	// std::cout << temp << " " << sets[index[i]].size() << '\n';
+				// 	if (temp > largest_size)
+				// 	{
+				// 		largest_size = temp;
+				// 		max_ii = i;
+				// 	}
 					
-				}
+				// }
 
-				inters_u_large_comp = ~sets[*largest_index_index] ;
-				//inters_u_large_comp.resize( max_size());
+
+				// max_ii = std::max_element( index.begin(),index.end(),
+				// 	[&](int a, int b){ return (sets[a].num_ones() < sets[b].num_ones()); } );
+
+				max_ii = std::max_element( index.begin(),index.end(),
+					lsetproc::compare(*this));
+
+				el_rem = ~sets[*max_ii] ;
 				for (auto  i = index.begin(); i != index.end(); ++i)
-				{
-					if ((i != largest_index_index) && (sets[*i].size() > 0))
-						sets[*i] &= inters_u_large_comp;
-					
-				}
-				index.erase(largest_index_index);
+					if ((i != max_ii) && (sets[*i].size() > 0))
+						sets[*i] &= el_rem;
+				index.erase(max_ii);
 			}
 
 			
 		}
 
+		struct compare
+		{
+			const lsetproc &proc;
+			compare(const lsetproc &in) : proc(in){}
+			bool operator() (int a, int b) { return (proc.sets[a].num_ones() 
+				< proc.sets[b].num_ones()) ; }
+
+		};
+
 };
+
+
 
 #endif

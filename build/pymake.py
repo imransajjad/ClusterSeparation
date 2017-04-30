@@ -5,8 +5,12 @@ from os import listdir, system, makedirs
 from os.path import isfile, join, getmtime, splitext, exists
 import time, subprocess
 
+
+lib_mode = "static" # "static" , "dynamic" or "off"
+lib_sys = "dll" # "dll" or "so"
+
 print("using build/pymake.py")
-include_string = "-I../include  -std=c++11 -pthread"   + " -Wall"
+include_string = "-I../include  -std=c++11 -pthread"  + " -Wall"
 linker_string = "-L../lib "
 la_string = ""
 main_exec = "main"
@@ -25,6 +29,15 @@ def print_first(title, some_list,suffix):
 			buff += i[0]+suffix
 		print(buff)
 
+def my_exec(buff):
+	error_flag = 0
+	print(write_buff)
+	stdoutdata = subprocess.getoutput(write_buff)
+	print(stdoutdata)
+	if "error" in stdoutdata:
+		error_flag = -1
+	return error_flag
+
 MAX_LEN = 50;
 src_list =get_names("../src")
 include_list = get_names("../include")
@@ -39,65 +52,60 @@ exec_list = get_names("../bin")
 
 
 
-# delete old main.exe if it is there
-# if main_exec in [i[0] for i in exec_list]:
-# 	system("del "+ "..\\bin\\" + main_exec + exec_ext)
+# get list of all .c files to build
+omake_list = [f  for f in src_list]
 
 
-# make a list of c files that are more recent than their .o files,
-# or the ones whos .o files don't exist
-#cmake_list = [f  for f in src_list if (f[0] in [g[0] for g in build_list]\
-# and f[1] >	build_list[[h[0] for h in build_list].index(f[0])][1])\
-#  or not(f[0] in [g[0] for g in build_list]) ] 
-cmake_list = [f  for f in src_list]
+# make a list of all the source files that need to be dynamically linked
+somake_list = [];
+if lib_mode == "static":
+	somake_list = [f for f in omake_list if f[0] in [g[0] for g in include_list] ]
+	# add them to the linker string
+	# and remove them from the list of c files
+	for i in somake_list:
+		if i[0] not in la_string:
+			la_string = "-l" + i[0] + " " + la_string
+		omake_list.remove(i)
+	# also remove them if they have more recent .so files
+	somake_list = [f  for f in somake_list if (f[0] in [g[0] for g in lib_list] and f[1] > \
+		lib_list[[h[0] for h in lib_list].index(f[0])][1]) or not(f[0] in [g[0] for g in lib_list]) ]
 
-#cmake_list = src_list[ src_list[:][1] == build_list[:][1] and src_list[:][2] > build_list[:][2]]
 
-# make a list of all the .c files that have headers (libraries)
-libamake_list = [f for f in cmake_list if f[0] in [g[0] for g in include_list] ]
+# then remove 
+obuilds = [i for i in build_list if (i[0] in [j[0] for j in omake_list]) ]
+if obuilds and max( [i[1] for i in include_list] + [j[1] for j in omake_list] ) \
+		<= min( [j[1] for j in obuilds]):
+	omake_list = []
 
-# and remove them from the list of c files
-for i in libamake_list:
-	if i[0] not in la_string:
-		la_string = "-l" + i[0] + " " + la_string
-	cmake_list.remove(i)
+# at this point, we should have a valid list to compile dynamically
+# and a valid list of compilation objects
 
-# also remove them if they have more recent .a files
-libamake_list = [f  for f in libamake_list if (f[0] in [g[0] for g in lib_list] and f[1] > \
-	lib_list[[h[0] for h in lib_list].index(f[0])][1]) or not(f[0] in [g[0] for g in lib_list]) ] 
+# print( obuilds)
+# print( somake_list)
+# print( omake_list)
 
-print_first("Building libraries",libamake_list,".a")
-print_first("Building binaries",cmake_list,".o")
 
-# compile libraries for dynamic linking
-for i in libamake_list:
+
+error_flag = 0;
+# compile libraries (if needed)
+for i in somake_list:
+	print_first("Compling libraries",somake_list,".a")
 	write_buff = "g++ -c ../src/" + i[0] + ".* -o ../lib/lib" + i[0] + ".a " + include_string
-	# write_buff = "g++ -c ../lib/" + i[0] + ".* -o " + i[0] + ".o " + include_string
-	print(write_buff)
-	result_lib = subprocess.run(write_buff, stdout=subprocess.PIPE)
-	print(result_lib.stdout.decode('utf-8'))
+	error_flag += my_exec(write_buff)
 	if i[0] not in la_string:
 		la_string = "-l" + i[0] + " " + la_string
 
 # compile object files
-for i in cmake_list:
+for i in omake_list:
 	write_buff = "g++ -c ../src/" + i[0] + ".* -o " + i[0] + ".o " + include_string
-	print(write_buff)
-	result_compile = subprocess.run(write_buff, stdout=subprocess.PIPE)
-	print(result_compile.stdout.decode('utf-8'))
+	error_flag += my_exec(write_buff)
 
 # link everything and make executable
-if len(cmake_list)>0 or len(libamake_list)>0 or (main_exec not in [i[0] for i in exec_list]):
-	if len(cmake_list)>0 or len(libamake_list)>0:
-		system("del ..\\bin\\" + main_exec + exec_ext)
+if error_flag == 0 and ((omake_list or somake_list) or not (main_exec in [i[0] for i in exec_list] )):
 	write_buff = "g++ *.o -o ../bin/" + main_exec + exec_ext + " "+ linker_string + " "+ la_string
-	print(write_buff)
-	result_link = subprocess.run(write_buff, stdout=subprocess.PIPE)
-	print(result_link.stdout.decode('utf-8'))
+	error_flag += my_exec(write_buff)
 
 time.sleep(0.1)
-
 # run executable
-print(result_compile.stdout.decode('utf-8'))
-if not result_link.stdout.decode('utf-8') and not result_link.stdout.decode('utf-8'):
+if error_flag == 0:
 	system("..\\bin\\" + main_exec + exec_ext)
