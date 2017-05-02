@@ -10,7 +10,7 @@ lib_mode = "static" # "static" , "dynamic" or "off"
 lib_sys = "dll" # "dll" or "so"
 
 print("using build/pymake.py")
-include_string = "-I../include  -std=c++11 -pthread"  + " -Wall"
+include_string = "-I../include  -std=c++11 -lpthread"  + " -Wall"
 linker_string = "-L../lib "
 la_string = ""
 main_exec = "main"

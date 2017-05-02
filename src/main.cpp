@@ -80,19 +80,20 @@ int main ()
 
 	std::cout << "\nInput Data...\n\n" ;
 
-	lsetproc set_processor = lsetproc(my_sets, 100 );
+	lsetproc set_processor = lsetproc(my_sets, my_sets.size()/100);
 
 	set_processor.print_all(1);
 	
 	std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
 
-	set_processor.process();
+	set_processor.process_multi();
+	// set_processor.process();
 	//set_processor.cleanup_fast();
 
 	std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
 
 	std::cout << "\nDone.\n\n" ;
-	set_processor.print_all(2);
+	set_processor.print_all(3);
 
 	auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 	std::cout << duration*1e-6 << " seconds.\n" ;

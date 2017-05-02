@@ -6,10 +6,12 @@
 #include <list>
 #include <vector>
 #include <bitset>
+#include <thread>
 
 #include "externs.h"
 
 #define thres 0.9
+#define thread_limit 25
 
 
 class lsetproc
@@ -71,11 +73,57 @@ class lsetproc
 			return b;
 		}
 
+		void process_multi()
+		{
+			// generate a numbered subset of the sets and pass it to
+			// the private processor function
+			std::vector<std::thread> my_threads;
+			std::list<int> setlist;
+			int numthreads = 0;
+			int maxthreads = 0;
+			
+			//batch_size = sets.size()/100;
+
+			do
+			{
+				my_threads.clear();
+				// if(my_threads.size() !=0) old_threads = my_threads.size();
+				// my_threads.clear();
+				// std::cout << "new pass\n";
+				for (size_t i = 0; i != sets.size(); ++i)
+				{
+					if (sets[i].size() >0)
+						setlist.push_back(i);
+					if ( ( (setlist.size()%batch_size == 0) && (setlist.size() > 0) ) 
+						|| (i+1 == sets.size()) )
+					{
+						std::cout << setlist.size() << ", " << i << std::endl;
+						numthreads++;
+						// std::cout << "pushing thread "<< my_threads.size() <<"\n";
+						my_threads.push_back( std::thread( [&,this]
+							(std::list<int> setlist_in)
+						{ process_subset_thres(setlist_in);
+							process_subset_inters_find(setlist_in); }, setlist ) );
+						setlist.clear();
+					}
+				}
+
+				for (auto& t: my_threads)
+					t.join();
+				if (maxthreads == 0) maxthreads = numthreads;
+				batch_size = 2*batch_size;
+			} while (my_threads.size() > 1);
+
+			std:: cout << "numthreads: " << numthreads << ", maxthreads: " << maxthreads << "\n";
+			//process();
+		}
+
 		void process()
 		{
 			// generate a numbered subset of the sets and pass it to
 			// the private processor function
 			std::list<int> setlist;
+
 			for (size_t i = 0; i != sets.size(); ++i)
 				if (sets[i].size() >0)
 					setlist.push_back(i);
@@ -124,6 +172,18 @@ class lsetproc
 		}
 
 		int intersection_num()
+		{
+			// total number of common elements across all sets
+			// WARNING: VERY SLOW!! do not use this function unless absolutely required
+			int count = 0;
+			for (size_t i = 0; i != sets.size(); ++i)
+				for (size_t j =i+1; j != sets.size(); ++j)
+					if ( (sets[i].size() > 0) && (sets[j].size() > 0) )
+						count += (sets[i] & sets[j]).num_ones();
+			return count;
+		}
+
+		int intersection_num_multi()
 		{
 			// total number of common elements across all sets
 			// WARNING: VERY SLOW!! do not use this function unless absolutely required
@@ -220,11 +280,11 @@ class lsetproc
 				// }
 
 
-				// max_ii = std::max_element( index.begin(),index.end(),
-				// 	[&](int a, int b){ return (sets[a].num_ones() < sets[b].num_ones()); } );
-
 				max_ii = std::max_element( index.begin(),index.end(),
-					lsetproc::compare(*this));
+					[&](int a, int b){ return (sets[a].num_ones() < sets[b].num_ones()); } );
+
+				// max_ii = std::max_element( index.begin(),index.end(),
+				// 	lsetproc::compare(*this));
 
 				el_rem = ~sets[*max_ii] ;
 				for (auto  i = index.begin(); i != index.end(); ++i)
@@ -238,8 +298,8 @@ class lsetproc
 
 		struct compare
 		{
-			const lsetproc &proc;
-			compare(const lsetproc &in) : proc(in){}
+			lsetproc &proc;
+			compare(lsetproc &in) : proc(in){}
 			bool operator() (int a, int b) { return (proc.sets[a].num_ones() 
 				< proc.sets[b].num_ones()) ; }
 
